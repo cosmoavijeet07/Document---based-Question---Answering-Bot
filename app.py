@@ -40,10 +40,11 @@ class GeminiLLM(LLM, BaseModel):
     
 load_dotenv(Path(".env"))
 
-st.set_page_config(page_title="Chat with Placy", layout="wide", )
-st.title("Chat with Placy..!!")
+st.set_page_config(page_title="Chat with Docs", layout="wide", )
+st.title("Chat with Docs!!")
 
-# pdfreader = PdfReader("All About Shrirang.pdf")
+
+
 pdfreader = PdfReader("A STUDENT GUIDE.pdf")
 
 
@@ -52,40 +53,73 @@ if "pdf_processed" not in st.session_state:
 
 if "faiss_vector_index" not in st.session_state:
     st.session_state.faiss_vector_index = None
-
-
-with st.spinner("Loading"):
-    if pdfreader:
+    
+# Upload document function
+def process_uploaded_pdf(uploaded_file):
+    if uploaded_file is not None:
+        pdf_reader = PdfReader(uploaded_file)
         raw_text = ''
-        for page in pdfreader.pages:
+        for page in pdf_reader.pages:
             content = page.extract_text()
             if content:
                 raw_text += content
+
+        genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+        login(token="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")
+
+        embedding_function = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+        faiss_vector_store = FAISS.from_texts([raw_text], embedding_function)
+
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=800,
+            chunk_overlap=200,
+        )
+        texts = text_splitter.split_text(raw_text)
+        faiss_vector_store.add_texts(texts[:50])
+
+        st.session_state.faiss_vector_index = VectorStoreIndexWrapper(vectorstore=faiss_vector_store)
+        st.session_state.pdf_processed = True
+        st.success("PDF processed and database initialized!")
+    else:
+        st.error("Failed to process the uploaded file.")
+
+
+# with st.spinner("Loading"):
+#     if pdfreader:
+#         raw_text = ''
+#         for page in pdfreader.pages:
+#             content = page.extract_text()
+#             if content:
+#                 raw_text += content
         
-        if not st.session_state.pdf_processed:
-            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            login(token="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")
-            llm=genai.GenerativeModel(model_name='gemini-1.5-flash')
+        # if not st.session_state.pdf_processed:
+        #     genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+        #     login(token="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")
+        #     llm=genai.GenerativeModel(model_name='gemini-1.5-flash')
 
-            embedding_function = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
-            faiss_vector_store = FAISS.from_texts([raw_text], embedding_function)
-            # result = faiss_vector_store.similarity_search("who is Shrirang",k=3)
-            # print("Result1:", result[2].page_content)
+        #     embedding_function = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+        #     faiss_vector_store = FAISS.from_texts([raw_text], embedding_function)
+        #     # result = faiss_vector_store.similarity_search("who is Shrirang",k=3)
+        #     # print("Result1:", result[2].page_content)
 
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=800,
-                chunk_overlap=200,
-            )
+        #     text_splitter = RecursiveCharacterTextSplitter(
+        #         chunk_size=800,
+        #         chunk_overlap=200,
+        #     )
 
-            texts = text_splitter.split_text(raw_text)
-            faiss_vector_store.add_texts(texts[:50])
+        #     texts = text_splitter.split_text(raw_text)
+        #     faiss_vector_store.add_texts(texts[:50])
 
-            st.session_state.faiss_vector_index = VectorStoreIndexWrapper(vectorstore=faiss_vector_store)
-            st.session_state.pdf_processed =True
+        #     st.session_state.faiss_vector_index = VectorStoreIndexWrapper(vectorstore=faiss_vector_store)
+        #     st.session_state.pdf_processed =True
+# Sidebar for uploading documents
+st.sidebar.markdown("## **Upload a Document**")
+uploaded_file = st.sidebar.file_uploader("Upload a PDF document", type=["pdf"])
+if uploaded_file:
+    process_uploaded_pdf(uploaded_file)
 
-st.sidebar.markdown("## **Welcome to Placy the IICxSPC Chatbot**")
-st.sidebar.markdown('##### Here you can ask all your queries regarding placements and internships')
-st.sidebar.markdown('##### This chatbot is specifically build for students who have queries regarding placement, internships and related activities')
+st.sidebar.markdown("## **Welcome to Docs the Document Q & A Chatbot**")
+st.sidebar.markdown('##### This chatbot is specifically build for EY Techathon 5.0 as part of Q & A Chatbot')
 st.sidebar.markdown(' If anything goes wrong do hard refresh by using **Shift** + **F5** key')
 
 def typing_animation(text, speed):
@@ -95,8 +129,8 @@ def typing_animation(text, speed):
 
 if "intro_displayed" not in st.session_state:
     st.session_state.intro_displayed = True
-    intro = "Hello, I am Placy, a  IIC x SPC Chatbot"
-    intro2= "You can chat with Placy"
+    intro = "Hello, I am Docs, a  Document Q & A Bot"
+    intro2= "Chat with Docs"
     st.write_stream(typing_animation(intro,0.02))
     st.write_stream(typing_animation(intro2,0.02))
 
@@ -121,97 +155,9 @@ def btn_callback():
     st.session_state.btn_selected=False
 
 prePrompt = None
-# if st.session_state.btn_selected:
-    
-#     with st.expander("What can you ask?"):
-#         col1, col2,col3=st.columns(3, gap="small")
-#         row2_col1, row2_col2, row2_col3, row2_col4 = st.columns(4, gap="small")
-#         row3_col1, row3_col2, row3_col3, row3_col4 = st.columns(4, gap="small")
-#         row4_col1, row4_col2, row4_col3, row4_col4 = st.columns(4, gap="small")
-#         with row2_col1:
-#             button_a = st.button('# Tell me in detail about Shrirang')
-#         with row2_col2:    
-#             button_b = st.button('# What education Shrirang have completed?')
-#         with row2_col3:  
-#             button_c = st.button('# Why should I hire Shrirang for AI role?')
-#         with row2_col4:  
-#             button_d = st.button('# List down Genrative AI projects shrirang have done')
-#         with row3_col1:  
-#             button_h = st.button('# List down all the skills Shrirang has')
-#         with row3_col2:  
-#             button_e = st.button('# What is Shrirang\'s GitHub id?')
-#         with row3_col3:  
-#             button_f = st.button('# What is Shrirang\'s LinkedIn id?')
-#         with row3_col4:  
-#             button_g = st.button('# List down Machine Learning projects shrirang have done')
-#         with row4_col2:  
-#             button_i = st.button('# What all position of responsibility Shrirang have took?')
-#         with row4_col3:  
-#             button_j = st.button('# What all hobbies Shrirang have?')
-#         with col1:
-#             button_x= st.button('# x',on_click=btn_callback ,  type='primary', key='close_btn')
-           
-
-#     if button_a:
-#         st.session_state.prePrompt_selected = True
-#         prePrompt = 'Tell me in detail about Shrirang'   
-
-#     if button_b:
-#         st.session_state.prePrompt_selected = True
-#         prePrompt = 'What education Shrirang have completed? answer in points' 
-
-#     if button_c:
-#         st.session_state.prePrompt_selected = True
-#         prePrompt = 'Analyse and answer Why a recruiter should hire Shrirang for AI role? answer in points'  
-    
-#     if button_d:
-#         st.session_state.prePrompt_selected = True
-#         prePrompt = 'List down Machine Learning projects shrirang have done? answer in points'  
-    
-#     if button_e:
-#         st.session_state.prePrompt_selected = True
-#         prePrompt = 'What is Shrirang\'s GitHub id?' 
-        
-#     if button_f:
-#         st.session_state.prePrompt_selected = True
-#         prePrompt = 'What is Shrirang\'s LinkedIn id?'  
-    
-#     if button_g:
-#         st.session_state.prePrompt_selected = True
-#         prePrompt = 'List down Machine Learning projects shrirang have done? answer in points'
-    
-#     if button_h:
-#         st.session_state.prePrompt_selected = True
-#         prePrompt = 'List down all the skills Shrirang has? answer in points'
-
-#     if button_i:
-#         st.session_state.prePrompt_selected = True
-#         prePrompt = 'What all position of responsibility Shrirang have took?'
-
-#     if button_j:
-#         st.session_state.prePrompt_selected = True
-#         prePrompt = 'What all hobbies Shrirang have? answer in points'
 
 
-# if st.session_state.prePrompt_selected and prePrompt is not None:
-# if st.session_state.prePrompt_selected and prePrompt is not None:
-    
-    # query_text = prePrompt.strip() 
-    # gemini_llm = GeminiLLM(model_name='gemini-1.5-flash')
-    # if st.session_state.faiss_vector_index is not None:
-    #     answer = st.session_state.faiss_vector_index.query(query_text, llm=gemini_llm).strip()
-    #     typing_speed = 0.02
-    #     if "context" or "no" in answer:
-    #         with st.chat_message("assistant"):
-    #             st.write_stream(typing_animation(answer, typing_speed))
-    #     else:        
-    #         with st.chat_message("assistant"):
-    #             st.write_stream(typing_animation(answer,typing_speed))
-                
-    #     st.session_state.messages.append({"role": "assistant", "content": answer})
-
-
-prompt = st.chat_input("Chat with Shrirang...")
+prompt = st.chat_input("Chat with Docs..")
  
 if prompt:
     with st.chat_message('user'):
