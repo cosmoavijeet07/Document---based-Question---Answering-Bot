@@ -27,7 +27,13 @@ class GeminiLLM(LLM, BaseModel):
         self.model = genai.GenerativeModel(model_name=self.model_name)
 
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
-        response = self.model.generate_content(prompt)
+        system_prompt = (
+            "You are a document-based Q&A assistant. Only answer questions based on the uploaded document. "
+            "If the answer is not found in the document, respond with: 'The requested information is not available in the uploaded document. "
+            "Please ask something related to the document's content.' Do not use external knowledge or speculate."
+        )
+        full_prompt = f"{system_prompt}\n\nUser Query: {prompt}\n\nAnswer:"
+        response = self.model.generate_content(full_prompt)
         return response.text
 
     @property
@@ -42,10 +48,6 @@ load_dotenv(Path(".env"))
 
 st.set_page_config(page_title="Chat with Docs", layout="wide", )
 st.title("Chat with Docs!!")
-
-
-
-pdfreader = PdfReader("A STUDENT GUIDE.pdf")
 
 
 if "pdf_processed" not in st.session_state:

@@ -2,7 +2,6 @@ cassio
 datasets
 langchain
 langchain_community
-chromadb
 pypdf
 sentence-transformers
 google-generativeai
